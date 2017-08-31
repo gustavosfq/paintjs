@@ -1,6 +1,7 @@
 function PaintJS(target, width, height) {
 	var _target,
 	    _canvas,
+	    _bgImage,
 	    _strokes = [],
 	    _currentStrokes = {};
 
@@ -104,6 +105,15 @@ function PaintJS(target, width, height) {
 		clear: function clear() {
 			_strokes = [];
 			_draw();
+		},
+		setBackground: function setBackground(_url) {
+			_bgImage = new Image();
+			_bgImage.onload = function(element) {
+				_target.width = element.path[0].width;
+				_target.height = element.path[0].height;
+				_target.style.background = 'url(' + _url + ') no-repeat center center';
+			}
+			_bgImage.src = _url;
 		}
 	};
 }
