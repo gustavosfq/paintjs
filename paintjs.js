@@ -47,10 +47,35 @@ function PaintJS(target, width, height) {
 
 	function _mouseEvent(event) {
 		_currentStrokes.points.push({
-			x: event.clientX - 8,
-			y: event.clientY - 8
+			x: event.offsetX,
+			y: event.offsetY
 		});
 		_draw();
+	}
+
+	function _setBG(url, percentage) {
+		_bgImage = new Image();
+		_bgImage.onload = function(element) {
+			element = element.path[0];
+			if(percentage){
+				percentage = percentage / 100;
+				//https://math.stackexchange.com/questions/180804/how-to-get-the-aspect-ratio-of-an-image
+				if(element.width > element.height){
+					_target.width = window.innerWidth * percentage;
+					_target.height = (window.innerWidth * percentage) / (element.width / element.height);
+				}else{
+					_target.height = window.innerHeight * percentage;
+					_target.width = (window.innerHeight * percentage) * (element.width / element.height);
+				}
+			}else{
+				_target.width = element.width;
+				_target.height = element.height;
+			}
+
+			_target.style.background = 'url(' + url + ') no-repeat center center';
+			_target.style.backgroundSize = _target.width + 'px ' + _target.height + 'px';
+		}
+		_bgImage.src = url;
 	}
 
 	function _draw() {
@@ -69,6 +94,8 @@ function PaintJS(target, width, height) {
 			_canvas.stroke();
 		}
 	}
+
+
 
 	return {
 		setTarget: function setTarget(target, width, height) {
@@ -106,14 +133,8 @@ function PaintJS(target, width, height) {
 			_strokes = [];
 			_draw();
 		},
-		setBackground: function setBackground(_url) {
-			_bgImage = new Image();
-			_bgImage.onload = function(element) {
-				_target.width = element.path[0].width;
-				_target.height = element.path[0].height;
-				_target.style.background = 'url(' + _url + ') no-repeat center center';
-			}
-			_bgImage.src = _url;
+		setBackground: function setBackground(_url, _percentage) {
+			_setBG(_url, _percentage);
 		}
 	};
 }
