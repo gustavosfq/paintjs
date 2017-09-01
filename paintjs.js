@@ -1,6 +1,6 @@
 function PaintJS(target, width, height) {
-	var _target,
-	    _canvas,
+	var _canvas,
+	    _ctx,
 	    _bgImage,
 	    _strokes = [],
 	    _currentStrokes = {};
@@ -16,13 +16,13 @@ function PaintJS(target, width, height) {
 	}
 
 	function _init(target, width, height) {
-		_target = document.querySelectorAll(target)[0];
-		_canvas = _target.getContext('2d');
-		_target.width = width || 0;
-		_target.height = height || 0;
-		_target.style.cursor = 'crosshair';
+		_canvas = document.querySelectorAll(target)[0];
+		_ctx = _canvas.getContext('2d');
+		_canvas.width = width || 0;
+		_canvas.height = height || 0;
+		_canvas.style.cursor = 'crosshair';
 
-		_target.addEventListener('mousedown', function (event) {
+		_canvas.addEventListener('mousedown', function (event) {
 			_brush.state = true;
 			_currentStrokes = {
 				color: _brush.color,
@@ -33,13 +33,13 @@ function PaintJS(target, width, height) {
 			_mouseEvent(event);
 		});
 
-		_target.addEventListener('mousemove', function (event) {
+		_canvas.addEventListener('mousemove', function (event) {
 			if (_brush.state) {
 				_mouseEvent(event);
 			}
 		});
 
-		_target.addEventListener('mouseup', function (event) {
+		_canvas.addEventListener('mouseup', function (event) {
 			_brush.state = false;
 			_mouseEvent(event);
 		});
@@ -55,74 +55,104 @@ function PaintJS(target, width, height) {
 
 	function _setBG(url, percentage) {
 		_bgImage = new Image();
-		_bgImage.onload = function(element) {
+		_bgImage.crossOrigin = 'Anonymous';
+		_bgImage.onload = function (element) {
 			element = element.path[0];
-			if(percentage){
+			if (percentage) {
 				percentage = percentage / 100;
+				var aspect = (element.width / element.height)
 				//https://math.stackexchange.com/questions/180804/how-to-get-the-aspect-ratio-of-an-image
-				if(element.width > element.height){
-					_target.width = window.innerWidth * percentage;
-					_target.height = (window.innerWidth * percentage) / (element.width / element.height);
-				}else{
-					_target.height = window.innerHeight * percentage;
-					_target.width = (window.innerHeight * percentage) * (element.width / element.height);
+				if (element.width > element.height) {
+					_canvas.width = window.innerWidth * percentage;
+					_canvas.height = window.innerWidth * percentage / aspect;
+				} else {
+					_canvas.height = window.innerHeight * percentage;
+					_canvas.width = window.innerHeight * percentage * aspect;
 				}
-			}else{
-				_target.width = element.width;
-				_target.height = element.height;
+			} else {
+				_canvas.width = element.width;
+				_canvas.height = element.height;
 			}
-
-			_target.style.background = 'url(' + url + ') no-repeat center center';
-			_target.style.backgroundSize = _target.width + 'px ' + _target.height + 'px';
-		}
+			_canvas.style.background = 'url(' + url + ') no-repeat center center';
+			_canvas.style.backgroundSize = _canvas.width + 'px ' + _canvas.height + 'px';
+		};
 		_bgImage.src = url;
 	}
 
+	function _getImage(callback, options) {
+		options.size = options.size || '';
+		options.type = options.type || '';
+		var size;
+		if (options.size === 'original') {
+			size = _bgImage;
+		} else {
+			size = _canvas;
+		}
+		var c = document.createElement('canvas');
+		var ctx = c.getContext('2d');
+		var image = new Image();
+		image.crossOrigin = 'Anonymous';
+		c.width = size.width;
+		c.height = size.height;
+		ctx.drawImage(_bgImage, 0, 0, size.width, size.height);
+		image.onload = function () {
+			ctx.drawImage(image, 0, 0, size.width, size.height);
+			if (typeof callback === 'function') {
+				if (options.type.toLowerCase() === 'blob') {
+					c.toBlob(function (blob) {
+						callback(blob);
+					});
+				} else {
+					callback(c.toDataURL());
+				}
+			}
+		};
+		image.src = _canvas.toDataURL();
+	}
+
 	function _draw() {
-		_canvas.clearRect(0, 0, _target.width, _target.height);
-		_canvas.lineCap = 'round';
+		_ctx.clearRect(0, 0, _canvas.width, _canvas.height);
+		_ctx.lineCap = 'round';
 		for (var i = 0; i < _strokes.length; i++) {
 			var s = _strokes[i];
-			_canvas.strokeStyle = s.color;
-			_canvas.lineWidth = s.size;
-			_canvas.beginPath();
-			_canvas.moveTo(s.points[0].x, s.points[0].y);
+			_ctx.strokeStyle = s.color;
+			_ctx.lineWidth = s.size;
+			_ctx.beginPath();
+			_ctx.moveTo(s.points[0].x, s.points[0].y);
 			for (var j = 0; j < s.points.length; j++) {
 				var p = s.points[j];
-				_canvas.lineTo(p.x, p.y);
+				_ctx.lineTo(p.x, p.y);
 			}
-			_canvas.stroke();
+			_ctx.stroke();
 		}
 	}
 
-
-
 	return {
 		setTarget: function setTarget(target, width, height) {
-			if (!_target) {
+			if (!_canvas) {
 				_init(target, width, height);
 			} else {
 				console.error('target is defined!');
 			}
 		},
-		width: function width(_width) {
+		width: function width(width) {
 			return arguments[0] ? function () {
-				_target.width = _width;
-			}() : _target.width;
+				_canvas.width = width;
+			}() : _canvas.width;
 		},
-		height: function height(_height) {
+		height: function height(height) {
 			return arguments[0] ? function () {
-				_target.height = _height;
-			}() : _target.height;
+				_canvas.height = height;
+			}() : _canvas.height;
 		},
-		color: function color(_color) {
+		color: function color(color) {
 			return arguments[0] ? function () {
-				_brush.color = _color;
+				_brush.color = color;
 			}() : _brush.color;
 		},
-		size: function size(_size) {
+		size: function size(size) {
 			return arguments[0] ? function () {
-				_brush.size = _size;
+				_brush.size = size;
 			}() : _brush.size;
 		},
 		undo: function undo() {
@@ -133,8 +163,12 @@ function PaintJS(target, width, height) {
 			_strokes = [];
 			_draw();
 		},
-		setBackground: function setBackground(_url, _percentage) {
-			_setBG(_url, _percentage);
+		setBackground: function setBackground(url, percentage) {
+			_setBG(url, percentage);
+		},
+		getImage: function getImage(callback, options) {
+			options = options || {};
+			return _getImage(callback, options);
 		}
 	};
 }
